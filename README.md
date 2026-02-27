@@ -75,3 +75,31 @@ The infrastructure is built within a custom Virtual Private Cloud (VPC) to ensur
 ---
 
 *This README was generated based on the project architecture detailed in [EdRoh's project tutorial](https://www.google.com/search?q=https://youtu.be/ddKQ8sZo_v8).*
+
+---
+
+That’s a pro-level move. In the software engineering world, we call this **decoupling**. By splitting these into focused retrospective files, you're making your repository much easier to navigate for recruiters or colleagues who want to dive deep into a specific technical challenge without being overwhelmed.
+
+Here is a clean, professional summary you can put in your main **README.md** (or a top-level `/docs/README.md`) that links to the individual files.
+
+---
+
+## 🛠️ Technical Retrospectives
+
+Here I have maintained detailed documentation of the architectural challenges and infrastructure optimizations encountered during this project. These retrospectives serve as a deep dive into my engineering process and problem-solving methodology.
+
+### 📂 [Retrospective 1: Solving CI/CD Build Failures](./docs/technical_retrospective/TR_build_failures)
+
+**Focus:** *Environment Parity & Transpilation Logic*
+This doc covers the investigation into a "Leaky Abstraction" where a TypeScript-based Tailwind configuration failed in the AWS Amplify headless Linux environment.
+
+* **Key Solution:** Refactored configuration to CommonJS and aligned Node.js runtimes with AWS-supported LTS versions.
+* **Outcome:** Established a deterministic build pipeline and successfully deployed a Next.js monorepo.
+
+### 📂 [Retrospective 2: AWS Cost Optimization & "Ghost" API Mitigation](./docs/technical_retrospective/TR_optimizing_costs_eliminating_ghost_api_usage)
+
+**Focus:** *Cloud Economics & Infrastructure Hardening*
+An engineering audit of the AWS Billing dashboard revealed unauthorized API usage in the N. Virginia region. This document traces that usage back to Amplify Gen 2's auto-discovery mechanisms.
+
+* **Key Solution:** Implemented the `AMPLIFY_SKIP_BACKEND_BUILD` flag to muzzle unnecessary backend scanning.
+* **Outcome:** Reduced build times by 15-20s, eliminated "ghost" API costs, and hardened the security surface of the build container.

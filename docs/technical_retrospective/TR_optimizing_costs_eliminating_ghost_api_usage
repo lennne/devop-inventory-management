@@ -1,0 +1,52 @@
+
+## Technical Retrospective: Optimizing AWS Costs and Eliminating "Ghost" API Usage
+
+### 1. The Observation
+
+While monitoring my AWS Billing and Cost Management dashboard, I noticed active usage for **AWS Secrets Manager** in the **US East (N. Virginia)** region.
+
+* **The Conflict:** I had not manually provisioned any secrets in that region, and the Secrets Manager console appeared entirely empty.  
+<img src="../imgs/aws_secrets_manager.png" width="400" />
+* **The Cost:** While the current bill was $0.00 due to low volume and trial periods, the "Usage" meter was moving, which signaled a potential "Day 31" surprise when the trial period would expire.
+<img src="../imgs/aws_billing_ghost_usage.png" width="400" />
+
+### 2. The Discovery (The "Ghost" API Calls)
+
+Through an audit of my AWS Bills and build logs, I identified the source: **AWS Amplify's auto-discovery mechanism.**
+
+  * Even though I was managing my backend manually on an EC2 instance, the Amplify build container was performing "Discovery" calls during the deployment phase.
+<img src="../imgs/build_logs.png" width="400" />
+
+
+* **Line 7:** `---- Setting Up SSM Secrets ----`
+* **Line 8:** `SSM params {"Path":"/amplify/d2ihnj8qzwcl4u/main/","WithDecryption":true}`
+* **Line 9:** `!Failed to set up process.env.secrets`
+
+This confirms that the Amplify build agent is proactively reaching out to the **SSM Parameter Store** and **Secrets Manager** using the path (`/amplify/d2ihnj8qzwcl4u/main/`) to see if there are any encrypted secrets stored. When it finds nothing, it logs a `INFO` warning and moves on.
+
+Those are the "Ghost API calls", because of that log, we can now see exactly what the two requests were:
+
+1. **Request 1:** A `GetParametersByPath` call to SSM to find anything under your app's unique path.
+2. **Request 2:** A secondary check to Secrets Manager to see if any of those SSM parameters are actually "pointers" to full secrets.
+
+
+* **The Culprit:** Amplify Gen 2's default behavior is to scan for associated backends (Data, Auth, or Secrets) to inject into the frontend.
+* **The Action:** The build agent was hitting the **ListSecrets** and **GetParameter** APIs in the default `us-east-1` region to see if there were any hidden configurations to apply.
+* **The Result:** 2 API requests were recorded per build, even if the result was null.
+
+### 3. The Resolution: Infrastructure Hardening
+
+After researching the AWS Amplify Hosting documentation, I implemented a "Frontend-Only" build strategy to muzzle the unnecessary scanning.
+
+* **Flag Implementation:** I added the `AMPLIFY_SKIP_BACKEND_BUILD` environment variable to the Amplify console and set it to `true`.  
+<img src="../imgs/aws_skip_deploy.png" width="400" />
+
+* **The Impact:** * **Cost Elimination:** It explicitly prevents the build agent from calling the Secrets Manager and SSM APIs, bringing "Ghost Usage" down to zero.
+
+* **Precision:** My architecture is now "Deterministic"—AWS only runs the processes I explicitly define.
+
+---
+
+### Engineering Takeaway
+
+> "Monitoring the billing dashboard is just as critical as monitoring the error logs. By identifying 'Ghost API usage' early, I was able to optimize my CI/CD pipeline for both cost and speed, ensuring a clean, frontend-only deployment that communicates efficiently with a decoupled EC2 backend."

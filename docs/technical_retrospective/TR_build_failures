@@ -1,0 +1,40 @@
+
+## Technical Retrospective: Solving Build Failures in my Next.js & AWS Amplify Pipeline
+
+### 1. The Problem
+
+After pushing my initial Next.js frontend to AWS Amplify, the build phase consistently failed during CSS compilation. Here are the [**Log Files**](./docs/) for the various deployments.
+
+* **The Error:** `TypeError: Cannot read properties of undefined (reading 'call')`
+* **The Source:** The logs pointed directly to `tailwind.config.ts`, specifically where I was invoking the `tw-colors` plugin.
+* **The Insight:** I realized this was a **Leaky Abstraction** issue. My local environment was masking a dependency resolution problem that the headless Linux container in AWS Amplify couldn't handle. Specifically, the TypeScript loader (**jiti**) used by Next.js was failing to properly transpile the configuration file in the cloud.  
+<img src="../imgs/Screenshot.png" width="400" />
+
+### 2. Debugging & Environment Sync
+
+Following the "Golden Rule" of DevOps—**debug locally first**—I attempted to reproduce the build environment on my machine.
+
+* **Version Mismatch:** I discovered I was running **Node v24** locally. After checking the AWS documentation, I found that Amplify Hosting officially supports **Node 20 and 22**.
+<img src="../imgs/aws_node_version_support.png" width="400" />
+* **The "Cancelled" Trap:** My initial attempts to force Node 24 in the cloud resulted in deployment timeouts and "Cancelled" statuses, confirming that I needed to align my environment with supported cloud runtimes.  
+<img src="../imgs/failed_build_aws_amplify_configuration.png" width="400" />
+<img src="../imgs/working_build_aws_amplify_configuration.png" width="400" />
+
+### 3. My Technical Solution: Reducing Abstraction
+
+To fix the `TypeError` and ensure it works, I decided to remove the complex TypeScript transpilation layer from the configuration process entirely.
+
+* **Refactor:** I renamed `tailwind.config.ts` to `tailwind.config.js`.
+* **Syntax Migration:** I converted the file from ES Modules (`import/export`) to **CommonJS** (`require/module.exports`). This ensured that the Node.js runtime could read the config "natively" without needing an intermediate transpiler.
+
+### 4. Optimizing the CI/CD Pipeline
+
+Since my project is structured as a **Monorepo**, I had to customize the `amplify.yml` build specification to ensure the build container "zoomed in" on the correct directory.
+
+* **`appRoot: client`**: I specified that my repository is a mono repo.
+
+### 5. Final Resolution
+
+After these changes, the pipeline successfully executed `next build`, generated all 11 static routes, and mapped the `.next` artifacts correctly.
+
+> **Key Takeaway:** This experience taught me the importance of **Environment Parity**. By refactoring high-level abstractions (TypeScript configs) into stable, native formats (CommonJS) and strictly managing the runtime environment (Node versions), I built a resilient pipeline that works across both local and cloud environments.
