@@ -3,13 +3,13 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: "https",
-        hostname: "s3-inventorymanagement.s3.us-east-2.amazonaws.com",
-        port: "",
-        pathname: "/**",
-      },
-    ],
-  },
+      protocol: "https",
+      hostname: "https://prac-s3-inventorymanagement.s3.us-east-1.amazonaws.com",
+      port: "",
+      pathname: "/**/"
+      }
+    ]
+  }
 };
 
 export default nextConfig;
